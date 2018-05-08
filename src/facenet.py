@@ -41,6 +41,78 @@ from tensorflow.python.platform import gfile
 import math
 from six import iteritems
 
+def triplet_loss_kld(anchor, positive, negative, alpha, kld_alfa, embedding_dim):
+    """Calculate the triplet loss according to the FaceNet paper
+    
+    Args:
+      anchor: the embeddings for the anchor images.
+      positive: the embeddings for the positive images.
+      negative: the embeddings for the negative images.
+  
+    Returns:
+      the triplet loss according to the FaceNet paper as a float tensor.
+    """
+    with tf.variable_scope('triplet_loss'):
+        pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
+        neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
+        
+        basic_loss = tf.add(tf.subtract(pos_dist,neg_dist), alpha)
+        mean, variance = tf.nn.moments(neg_dist)
+        std = tf.sqrt(variance)
+
+        kl_dist = tf.log(1/(std*2*embedding_dim)) + \
+                (var + (mean - np.sqrt(2))**2)*2*embedding_dim**2 - 0.5
+        loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0) * kld_alfa * kl_dist
+      
+    return loss
+
+def triplet_loss_gor(anchor, positive, negative, alpha, gor_alfa, embedding_dim):
+    """Calculate the triplet loss according to the FaceNet paper
+    
+    Args:
+      anchor: the embeddings for the anchor images.
+      positive: the embeddings for the positive images.
+      negative: the embeddings for the negative images.
+  
+    Returns:
+      the triplet loss according to the FaceNet paper as a float tensor.
+    """
+    with tf.variable_scope('triplet_loss'):
+        pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
+        neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
+
+        m1 = tf.pow(tf.reduce_sum(tf.multiply(anchor, negative), 1), 2)
+
+        mean = tf.pow(tf.reduce_mean(tf.reduce_sum(tf.multiply(anchor, negative),1)),2)
+        
+        gor = mean + tf.sqrt(tf.abs(tf.substract(tf.reduce_mean(m1), 1/embedding_dim)))
+
+        basic_loss = tf.add(tf.subtract(pos_dist,neg_dist), alpha)
+        loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0) + gor*gor_alfa
+      
+    return loss
+
+def triplet_loss_soft(anchor, positive, negative, alpha):
+    """Calculate the triplet loss according to the FaceNet paper
+    
+    Args:
+      anchor: the embeddings for the anchor images.
+      positive: the embeddings for the positive images.
+      negative: the embeddings for the negative images.
+  
+    Returns:
+      the triplet loss according to the FaceNet paper as a float tensor.
+    """
+    with tf.variable_scope('triplet_loss'):
+        pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
+        neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
+        
+        basic_loss = tf.add(tf.subtract(pos_dist,neg_dist), 
+                alpha * tf.nn.softplus(pos_dist))
+        loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0)
+      
+    return loss
+
 def triplet_loss(anchor, positive, negative, alpha):
     """Calculate the triplet loss according to the FaceNet paper
     

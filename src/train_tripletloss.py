@@ -136,7 +136,19 @@ def main(args):
         embeddings = tf.nn.l2_normalize(prelogits, 1, 1e-10, name='embeddings')
         # Split embeddings into anchor, positive and negative and calculate triplet loss
         anchor, positive, negative = tf.unstack(tf.reshape(embeddings, [-1,3,args.embedding_size]), 3, 1)
-        triplet_loss = facenet.triplet_loss(anchor, positive, negative, args.alpha)
+        if args.gor_alfa:
+            triplet_loss = facenet.triplet_loss_gor(anchor,
+                    positive, negative, args.alpha,
+                    args.gor_alfa, args.embedding_size)
+        elif args.kld_alfa:
+            triplet_loss = facenet.triplet_loss_kld(anchor,
+                    positive, negative, args.alpha,
+                    args.kld_alfa, args.embedding_size)
+        elif args.soft_alfa:
+            triplet_loss = facenet.triplet_loss_soft(anchor, positive, 
+                    negative, args.soft_alfa)
+        else:
+            triplet_loss = facenet.triplet_loss(anchor, positive, negative, args.alpha)
         
         learning_rate = tf.train.exponential_decay(learning_rate_placeholder, global_step,
             args.learning_rate_decay_epochs*args.epoch_size, args.learning_rate_decay_factor, staircase=True)
@@ -445,6 +457,9 @@ def parse_arguments(argv):
         help='Number of batches per epoch.', default=1000)
     parser.add_argument('--alpha', type=float,
         help='Positive to negative triplet distance margin.', default=0.2)
+    parser.add_argument('--gor_alfa', type=float )
+    parser.add_argument('--kld_alfa', type=float )
+    parser.add_argument('--soft_alfa', type=float )
     parser.add_argument('--embedding_size', type=int,
         help='Dimensionality of the embedding.', default=128)
     parser.add_argument('--random_crop', 
